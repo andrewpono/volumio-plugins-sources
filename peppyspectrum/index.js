@@ -1,5 +1,6 @@
 'use strict';
-
+/*By balbuze May 2024
+*/
 var fs = require('fs-extra');
 var libFsExtra = require('fs-extra');
 var exec = require('child_process').exec;
@@ -9,7 +10,9 @@ var libQ = require('kew');
 //var config = new (require('v-conf'))();
 const io = require('socket.io-client');
 const path = require('path');
-
+const { basename } = require('path');
+const spectrumspath = "INTERNAL/PeppySpectrum/Templates/";
+const logPrefix = "PeppySpectrum ---"
 
 // Define the peppyspectrum class
 module.exports = peppyspectrum;
@@ -40,14 +43,14 @@ peppyspectrum.prototype.getConfigurationFiles = function () {
 peppyspectrum.prototype.getI18nFile = function (langCode) {
     const i18nFiles = fs.readdirSync(path.join(__dirname, 'i18n'));
     const langFile = 'strings_' + langCode + '.json';
-  
+
     // check for i18n file fitting the system language
     if (i18nFiles.some(function (i18nFile) { return i18nFile === langFile; })) {
-      return path.join(__dirname, 'i18n', langFile);
+        return path.join(__dirname, 'i18n', langFile);
     }
     // return default i18n file
     return path.join(__dirname, 'i18n', 'strings_en.json');
-  }
+}
 // Plugin methods -----------------------------------------------------------------------------
 
 peppyspectrum.prototype.onStop = function () {
@@ -70,7 +73,7 @@ peppyspectrum.prototype.onStart = function () {
     var defer = libQ.defer();
     self.socket = io.connect('http://localhost:3000');
 
-    self.modprobedummy()
+    // self.modprobedummy()
     self.commandRouter.executeOnPlugin('audio_interface', 'alsa_controller', 'updateALSAConfigFile')
 
         .then(function (e) {
@@ -108,7 +111,7 @@ peppyspectrum.prototype.modprobedummy = function () {
         self.commandRouter.pushConsoleMessage('snd-dummy loaded');
         defer.resolve();
     } catch (err) {
-        self.logger.info('failed to load snd-dummy' + err);
+        self.logger.info(logPrefix + 'failed to load snd-dummy' + err);
     }
 };
 
@@ -122,7 +125,7 @@ peppyspectrum.prototype.startpeppyservice = function () {
         gid: 1000
     }, function (error, stdout, stderr) {
         if (error) {
-            self.logger.info('peppyspectrum failed to start. Check your configuration ' + error);
+            self.logger.info(logPrefix + 'peppyspectrum failed to start. Check your configuration ' + error);
         } else {
             self.commandRouter.pushConsoleMessage('peppyspectrum Daemon Started');
 
@@ -139,7 +142,7 @@ peppyspectrum.prototype.restartpeppyservice = function () {
         gid: 1000
     }, function (error, stdout, stderr) {
         if (error) {
-            self.logger.info('peppyspectrum failed to start. Check your configuration ' + error);
+            self.logger.info(logPrefix + 'peppyspectrum failed to start. Check your configuration ' + error);
         } else {
             self.commandRouter.pushConsoleMessage('peppyspectrum Daemon Started');
 
@@ -157,7 +160,7 @@ peppyspectrum.prototype.stopeppyservice = function () {
         gid: 1000
     }, function (error, stdout, stderr) {
         if (error) {
-            self.logger.info('peppyspectrum failed to stop!! ' + error);
+            self.logger.info(logPrefix + 'peppyspectrum failed to stop!! ' + error);
         } else {
             self.commandRouter.pushConsoleMessage('peppyspectrum Daemon Stop');
 
@@ -184,7 +187,7 @@ peppyspectrum.prototype.onUninstall = function () {
 peppyspectrum.prototype.checkIfPlay = function () {
     const self = this;
     self.socket.on('pushState', function (data) {
-        self.logger.info('peppyspectrum status ' + data.status);
+        self.logger.info(logPrefix + 'peppyspectrum status ' + data.status);
 
         if (data.status === "play") {
             self.startpeppyservice()
@@ -233,14 +236,14 @@ peppyspectrum.prototype.getUIConfig = function () {
             // Call the function
             readDirectory()
                 .then(folders => {
-                 //   console.log('Folders in the directory:', folders);
+                    //   console.log('Folders in the directory:', folders);
 
-                    let allfolder = 'small,medium,large,wide,' + folders;
+                    let allfolder = '320x240,480x320,800x480,1280x400,' + folders;
                     //   self.logger.info('list is ' + allfilter)
                     var litems = allfolder.split(',');
 
                     for (let a in litems) {
-                    //    console.log('Text between brackets:', litems[a]);
+                        //    console.log('Text between brackets:', litems[a]);
 
                         self.configManager.pushUIConfigParam(uiconf, 'sections[0].content[0].options', {
                             value: litems[a],
@@ -286,7 +289,7 @@ peppyspectrum.prototype.getUIConfig = function () {
             self.configManager.setUIConfigParam(uiconf, 'sections[1].content[0].value.label', valuespectrum);
 
             try {
-                if ((valuescreen == 'small') || (valuescreen == 'medium') || (valuescreen == 'large') || (valuescreen == 'wide')) {
+                if ((valuescreen == '320x240') || (valuescreen == '480x320') || (valuescreen == '800x480') || (valuescreen == '1280x400')) {
                     spectrumfolder = '/data/plugins/user_interface/peppyspectrum/PeppySpectrum/'
                 } else {
                     spectrumfolder = '/data/INTERNAL/PeppySpectrum/Templates/'
@@ -309,11 +312,11 @@ peppyspectrum.prototype.getUIConfig = function () {
                         matches.push(match[1]);
                     }
                     let allfilter = 'Random,' + matches;
-                    self.logger.info('list is ' + allfilter)
+                    self.logger.info(logPrefix + 'list is ' + allfilter)
                     var litems = allfilter.split(',');
 
                     for (let a in litems) {
-                        console.log('Text between brackets:', litems[a]);
+                        // console.log('Text between brackets:', litems[a]);
 
                         self.configManager.pushUIConfigParam(uiconf, 'sections[1].content[0].options', {
                             value: litems[a],
@@ -323,11 +326,38 @@ peppyspectrum.prototype.getUIConfig = function () {
                     uiconf.sections[2].content[0].value = self.config.get('debuglog');
                     uiconf.sections[2].hidden = true;
 
+
+
+                    //-----------section 4---------
+                    var value = self.config.get('zipfile');
+                    self.configManager.setUIConfigParam(uiconf, 'sections[3].content[0].value.value', value);
+                    self.configManager.setUIConfigParam(uiconf, 'sections[3].content[0].value.label', value);
+
+
+                    try {
+                        let listf = fs.readFileSync('/data/plugins/user_interface/peppyspectrum/spectrumslist.txt', "utf8");
+                        var result = (listf.split('\n'));
+                        let i;
+                        for (i = 0; i < result.length; i++) {
+                            var preparedresult = result[i].split(".")[0];
+                            self.logger.info(logPrefix + preparedresult)
+
+                            self.configManager.pushUIConfigParam(uiconf, 'sections[3].content[0].options', {
+                                value: preparedresult,
+                                label: i + 1 + ' ' + preparedresult
+                            });
+                        }
+
+
+                    } catch (err) {
+                        self.logger.error(logPrefix + ' failed to read downloadedlist.txt' + err);
+                    }
+
                     // Resolve the promise after the file reading and processing are complete
                     defer.resolve(uiconf);
                 });
             } catch (e) {
-                self.logger.error('Cannot read file: ' + e);
+                self.logger.error(logPrefix+'Cannot read file: ' + e);
                 defer.reject(e); // Reject the promise in case of an error
             }
         })
@@ -369,7 +399,7 @@ peppyspectrum.prototype.savepeppy = function (data) {
 
     const defer = libQ.defer();
     function hasOpeningParenthesis(screensize) {
-        return screensize.includes('(');
+        return screensize.includes('x');
     }
     var screensize = (data['screensize'].value);
 
@@ -384,26 +414,43 @@ peppyspectrum.prototype.savepeppy = function (data) {
 
     if (hasOpeningParenthesis(screensize)) {
 
-        autovalue = screensize.split('(')
+        autovalue = screensize.split('x')//.slice(0, 3)
+
+        console.log('aaaaaaaaaaa ' + autovalue)
+        self.logger.info(logPrefix + autovalue[0] + autovalue[1])// + autovalue[2])
+
+
     } else {
         myNumberx = '';
         myNumbery = '';
         spectrumsizef = 30
+
     }
-    if ((screensize === 'small') || (screensize === 'medium') || (screensize === 'large') || (screensize === 'wide')) {
+    if ((screensize === '320x240') || (screensize === '480x320') || (screensize === '800x480') || (screensize === '1280x400')) {
         myNumberx = '';
         myNumbery = '';
         spectrumsizef = 30
     } else {
 
-        var sizef = autovalue[1]
-        //   console.log('aaaaaaaaaaa ' + autovalue)
+        var sizef = autovalue[0]
 
-        var size = sizef.slice(0, -1)
-        var sizen = size.split('x')
-        screenwidth = sizen[0]
-        screenheight = sizen[1]
-        spectrumsizef = sizen[2]
+        var size = sizef//.slice(0, -1)
+        // Split the string by comma and convert each element to integer
+        var sizen = sizef.split(',').map(function (value) {
+            return parseInt(value, 10);
+        });
+
+        // Extract width and height (assuming valid format)
+        screenwidth = parseInt(autovalue[0], 10);
+        screenheight = parseInt(autovalue[1].split('+')[0], 10); // Extract height before '+'
+
+        // Extract the value after '+' (assuming it's 34)
+        spectrumsizef = parseInt(autovalue[1].split('+')[1], 10);
+
+        //screenwidth = autovalue[0]
+        //screenheight = autovalue[1].split('+').split("-")[0]
+        //spectrumsizef = autovalue[2].split('-')[0]
+        self.logger.info(logPrefix + screenwidth + screenheight + spectrumsizef)
         myNumberx = parseInt(screenwidth, 10);
         myNumbery = parseInt(screenheight, 10);
         mySpectrumSize = parseInt(spectrumsizef, 10);
@@ -411,13 +458,12 @@ peppyspectrum.prototype.savepeppy = function (data) {
         var truex = (typeof myNumberx === 'number' && isFinite(myNumberx))
         var truey = (typeof myNumbery === 'number' && isFinite(myNumbery))
         var trues = (typeof mySpectrumSize === 'number' && isFinite(mySpectrumSize))
-        console.log('The variable is a finite number.' + myNumberx + " " + myNumbery + " " + mySpectrumSize);
 
         if (truex && truey && trues) {
             // console.log('The variable is a finite number.' + myNumberx + " " + myNumbery + " " + mySpectrumSize);
         } else if (((!truex && !truey && !trues)) || (size == undefined)) {
-            console.log('The variable is not a finite number.');
-            self.commandRouter.pushToastMessage('error', "Can't determine screen size because the folder is not properly named!,Must be Mycustom(widthxheight) ex : Metal(800x600), please check!");
+          //  console.log('The variable is not a finite number.');
+            self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('SPECTRUM_FOLDER_NAME'));
             myNumberx = '480'
             myNumbery = '240'
             spectrumsizef = 30;
@@ -433,12 +479,14 @@ peppyspectrum.prototype.savepeppy = function (data) {
     self.config.set('screenheight', myNumbery);
 
     var storedspectrumsize = self.config.get("spectrumsize")
-    console.log("spectrumsizef " + typeof parseInt(spectrumsizef, 10) + "  storedspectrumsize " + typeof storedspectrumsize)
+    //  mySpectrumsize = self.config.get("spectrumsize")
+
+    //console.log("spectrumsizef " + typeof parseInt(spectrumsizef, 10) + "  storedspectrumsize " + typeof storedspectrumsize)
     if (parseInt(spectrumsizef, 10) !== storedspectrumsize) {
 
         if (spectrumsizef == undefined) {
             spectrumsizef = 30
-            //     self.config.set('spectrumsize', spectrumsizef)
+            self.config.set('spectrumsize', mySpectrumSize)
         }
         self.commandRouter.pushToastMessage('success', self.commandRouter.getI18nString('NBARCHANGE') + spectrumsizef);
 
@@ -576,14 +624,16 @@ peppyspectrum.prototype.savepeppyconfig = function () {
             var autosize = self.config.get('autosize')
 
             var screensize = self.config.get('screensize')
-            if ((screensize == 'small') || (screensize == 'medium') || (screensize == 'large') || (screensize == 'wide')) {
-                var screenwidth = ''
-                var screenheight = ''
+            if ((screensize == '320x240') || (screensize == '480x320') || (screensize == '800x480') || (screensize == '1280x400')) {
+                var screenwidth = self.config.get("screenwidth")
+                var screenheight = self.config.get("screenheight")
+                var basefolder = ''
 
             } else {
-                screensize = ('/data/INTERNAL/PeppySpectrum/Templates/' + self.config.get("screensize"))
+                screensize = (/*µ'/data/INTERNAL/PeppySpectrum/Templates/' +*/ self.config.get("screensize"))
                 screenwidth = self.config.get("screenwidth")
                 screenheight = self.config.get("screenheight")
+                basefolder = ('/data/INTERNAL/PeppySpectrum/Templates')
             }
 
 
@@ -600,7 +650,15 @@ peppyspectrum.prototype.savepeppyconfig = function () {
             }
             else if (debuglogd = 'False');
 
+            self.logger.info(logPrefix + "--------------------spectrum" + spectrum)
+            self.logger.info(logPrefix + "--------------------$basefolder" + basefolder)
+            self.logger.info(logPrefix + "--------------------screensize" + screensize)
+            self.logger.info(logPrefix + "--------------------screenwidth" + screenwidth)
+            self.logger.info(logPrefix + "--------------------screenheight" + screenheight)
+            self.logger.info(logPrefix + "--------------------spectrumsize" + spectrumsize)
+
             const conf1 = data.replace("${spectrum}", spectrum)
+                .replace("${basefolder}", basefolder)
                 .replace("${screensize}", screensize)
                 .replace("${screenwidth}", screenwidth)
                 .replace("${screenheight}", screenheight)
@@ -610,8 +668,11 @@ peppyspectrum.prototype.savepeppyconfig = function () {
 
             fs.writeFile("/data/plugins/user_interface/peppyspectrum/PeppySpectrum/config.txt", conf1, 'utf8', function (err) {
                 if (err)
+
                     defer.reject(new Error(err));
                 else defer.resolve();
+                self.logger.error(logPrefix+"Error writing config " + err);
+
             });
 
         });
@@ -623,6 +684,65 @@ peppyspectrum.prototype.savepeppyconfig = function () {
     return defer.promise;
 };
 
+peppyspectrum.prototype.dlspectrum = function (data) {
+    const self = this;
+    let zipfile = data["zipfile"].value// + ".zip"
+    ///self.config.set('debuglog', data['debuglog']);
+
+
+    return new Promise(function (resolve, reject) {
+        try {
+            let modalData = {
+                title: self.commandRouter.getI18nString('SPECTRUM_INSTALL_TITLE'),
+                message: self.commandRouter.getI18nString('SPECTRUM_INSTALL_WAIT'),
+                size: 'lg'
+            };
+            //self.commandRouter.pushToastMessage('info', 'Please wait while installing ( up to 30 seconds)');
+            self.commandRouter.broadcastMessage("openModal", modalData);
+
+            let cp3 = execSync('/usr/bin/wget -P /tmp https://github.com/balbuze/Spectrum-peppyspectrum/raw/main/Zipped-folders/' + zipfile + '.zip');
+          //  let cp9 = execSync('sudo chmod -R 766 /data/' + spectrumspath)
+           // let cp5 = execSync('miniunzip -o /tmp/' + zipfile + '.zip -d /data/' + spectrumspath);
+            let cp5 = execSync('miniunzip -o /tmp/' + zipfile + '.zip -d /data/' + spectrumspath+' && sudo chmod -R 777 /data/' + spectrumspath);
+
+            self.logger.info(logPrefix + 'message miniunzip -o /tmp/' + zipfile + '.zip -d /data/' + spectrumspath);
+
+
+            self.refreshUI();
+
+        } catch (err) {
+            self.logger.error(logPrefix + ' An error occurs while downloading or installing Spectrums');
+            self.commandRouter.pushToastMessage('error', 'An error occurs while downloading or installing Spectrum');
+        }
+      //  self.config.set('zipfile', zipfile);
+      let cp6 = execSync('/bin/rm /tmp/' + zipfile + '.zip*');
+        resolve();
+    });
+};
+
+peppyspectrum.prototype.updatelist = function (data) {
+    const self = this;
+    let path = 'https://github.com/balbuze/Spectrum-peppyspectrum/raw/main';
+    let name = 'spectrumslist.txt';
+    let defer = libQ.defer();
+    var destpath = ' \'/data/plugins/user_interface/peppyspectrum';
+    // self.config.set('importeq', namepath)
+    var toDownload = (path + '/' + name + '\'');
+    self.logger.info(logPrefix + ' wget \'' + toDownload)
+    try {
+        execSync("/usr/bin/wget \'" + toDownload + " -O" + destpath + "/spectrumslist.txt\'", {
+            uid: 1000,
+            gid: 1000
+        });
+        self.commandRouter.pushToastMessage('info', self.commandRouter.getI18nString('LIST_SUCCESS_UPDATED'))
+        self.refreshUI();
+        defer.resolve();
+    } catch (err) {
+        self.commandRouter.pushToastMessage('error', self.commandRouter.getI18nString('LIST_FAIL_UPDATE'))
+        self.logger.error(logPrefix + ' failed to  download file ' + err);
+    }
+    return defer.promise;
+}
 
 peppyspectrum.prototype.setUIConfig = function (data) {
     const self = this;
